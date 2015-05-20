@@ -22,7 +22,7 @@ class Cockpit extends Component
     /**
      * @var array Cockpit config options. This file will be merged with defaults
      */
-    public $config;
+    public $config = [];
 
     public function init()
     {
@@ -41,9 +41,9 @@ class Cockpit extends Component
         define('COCKPIT_CONFIG_PATH', $configFile);
 
         $config = ArrayHelper::merge($defaults, $this->config);
-        $configData = var_export($config);
+        $configData = var_export($config, true);
         FileHelper::createDirectory(dirname($configFile));
-        file_put_contents($configFile, "<?php\nreturn ".$configData);
+        file_put_contents($configFile, "<?php\nreturn ".$configData.';');
     }
 
     public function run()
