@@ -18,21 +18,44 @@ class Cockpit extends Component
     /**
      * @var string Cockpit storage path
      */
-    public $cockpitStoragePath = '@app/data/cockpit';
+    public $cockpitStoragePath = '@data/cockpit';
     /**
      * @var array Cockpit config options. This file will be merged with defaults
      */
-    public $config;
+    public $config =[];
+    /**
+     * @var string - relative url (example: module/controller/action)
+     */
+    public $baseRoute;
+    /**
+     * @var string - relative url (example: module/controller/action)
+     */
+    public $baseUrl;
 
     public function init()
     {
         $cockpitStorage = \Yii::getAlias($this->cockpitStoragePath);
+        $cockpitAssets  = \Yii::$app->getAssetManager()->publish(\Yii::getAlias('@vendor/aheinze/cockpit/assets'), ['forceCopy' => false]);
+        $cockpitCache   = \Yii::$app->getAssetManager()->publish(\Yii::getAlias('@vendor/aheinze/cockpit/storage/cache'), ['forceCopy' => true]);
+        
+        if ( $this->baseRoute )
+        {
+            define('COCKPIT_BASE_ROUTE' , $this->baseRoute);
+        }
+        if ( $this->baseUrl )
+        {
+            define('COCKPIT_BASE_URL' , $this->baseUrl);
+        }
         $defaults = [
+            'database' => [ "server" => "mongolite://".($cockpitStorage."/data"), "options" => ["db" => "cockpitdb"] ],
             'paths' => [
+                '#root'    => \Yii::getAlias('@app'),
+                'assets'  => $cockpitAssets[0],
                 'storage' => $cockpitStorage,
                 '#backups'=> $cockpitStorage.'/backups',
                 'data'    => $cockpitStorage.'/data',
-                'cache'   => \Yii::getAlias('@runtime/cockpit/cache'),
+                'custom'  => \Yii::getAlias('@vendor/aheinze/cockpit-i18n'),
+                'cache'   => $cockpitCache[0],
                 'tmp'     => \Yii::getAlias('@runtime/cockpit/cache/tmp'),
             ]
         ];
@@ -41,9 +64,12 @@ class Cockpit extends Component
         define('COCKPIT_CONFIG_PATH', $configFile);
 
         $config = ArrayHelper::merge($defaults, $this->config);
-        $configData = var_export($config);
+        $configData = var_export($config, true);
         FileHelper::createDirectory(dirname($configFile));
-        file_put_contents($configFile, "<?php\nreturn ".$configData);
+        file_put_contents($configFile, "<?php\nreturn ".$configData.';');
+        
+        $includePath = \Yii::getAlias('@cockpit/vendor');
+        set_include_path(get_include_path().PATH_SEPARATOR.$includePath);
     }
 
     public function run()
@@ -52,10 +78,11 @@ class Cockpit extends Component
         if (!isset($_SERVER['COCKPIT_URL_REWRITE'])) {
             $_SERVER['COCKPIT_URL_REWRITE'] = 'Off';
         }
-        date_default_timezone_set('UTC');
+        //date_default_timezone_set('UTC');
         if (PHP_SAPI == 'cli-server' && is_file(__DIR__.parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH))) {
             return false;
         }
+        
         require(\Yii::getAlias('@vendor/aheinze/cockpit/bootstrap.php'));
         /** @var $cockpit */
         $cockpit->on("after", function() {
